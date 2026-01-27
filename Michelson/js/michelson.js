@@ -195,7 +195,7 @@
     	if(!idSlider) idSlider = "slider"+numSlider.toString()
 
     	if(idSlider == "slider0") {
-        rval = ($( "#"+idSlider).slider("option","value"))/100
+        rval = ($( "#"+idSlider).slider("option","value"))/2000
         Michelson.setDelta(rval)
         updateDrawing()
       }
