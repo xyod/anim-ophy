@@ -129,7 +129,7 @@
 
 		Michelson.setThetaX(params.thetax/1000/1000)
 		Michelson.setThetaY(params.thetay/1000/1000)
-		Michelson.setDelta(params.delta/1000)
+		Michelson.setDelta(params.delta/1000/20)
 		setWavelength(params.lambda)
 		updateDrawing()
 		updateSVG()
