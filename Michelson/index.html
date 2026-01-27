@@ -326,12 +326,12 @@
 		</tr>
 		<tr>
 			<td>
-				<span class="disable-selection">Miroir 2 δz : {{params.delta}} µm</span>
+				<span class="disable-selection">Miroir 2 δz : {{params.delta/20}} µm</span>
 
 			</td>
 			<td>
 				<md-slider-container>
-				  <md-slider flex="" ng-model="params.delta" min="-10000/20" max="10000/20" aria-label="blue" id="blue-slider" style="height:35px" class="md-primary" ng-change="myMethod()">
+				  <md-slider flex="" ng-model="params.delta" min="-10000" max="10000" aria-label="blue" id="blue-slider" style="height:35px" class="md-primary" ng-change="myMethod()">
 				  </md-slider>
 				 </md-slider-container>
 			</td>
