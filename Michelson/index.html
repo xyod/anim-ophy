@@ -349,10 +349,13 @@
 		</tr>
 	</table>
 
-	<md-switch ng-model="params.whiteLight" aria-label="Switch 1" ng-change="switchWL()" layout-align="center end">
+	<md-switch ng-model="params.whiteLight" name="switch_wl" aria-label="Switch 1" ng-change="switchWL()" layout-align="center end">
 		Lumière blanche
 	</md-switch>
 
+	<md-switch ng-model="params.sodium" name="switch_na" aria-label="Switch 2" ng-change="switchNa()" layout-align="center end">
+		Doublet du Sodium
+	</md-switch>
 
     <footer class="md-theme-light md-medium-tall">
 		<div layout="row" layout-align="center center" class="md-body-2" >
