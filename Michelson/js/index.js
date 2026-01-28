@@ -26,15 +26,40 @@ angular.module('MyApp',['ngMaterial', 'ngMessages', 'material.svgAssetsCache'])
 	  if ($scope.params.whiteLight){
 		  lightSource = 1
 		  $scope.params.delta = 0
+		  $scope.params.sodium = false;
 		  document.getElementsByTagName("md-slider")[2].setAttribute("disabled","")
 		  document.getElementsByTagName("md-slider")[3].setAttribute("disabled","")
-      } else {
+      }
+	  else {
 		  lightSource = 0
+		  $scope.params.whiteLight = false;
+		  $scope.params.sodium = false;
 		  document.getElementsByTagName("md-slider")[2].removeAttribute("disabled")
 		  document.getElementsByTagName("md-slider")[3].removeAttribute("disabled")
 	  }
 	  updateParams($scope.params)
+  }
+  
+  $scope.switchNa = function(){
 	  
+	  if ($scope.params.sodium){
+		  lightSource = 2
+		  $scope.params.delta = 0
+		  //document.getElementsByTagName("md-slider")[2].setAttribute("disabled","")
+		  //document.getElementsByName("switch_wl")[2]
+		  $scope.params.whiteLight = false;
+		  $scope.params.lambda = 589;
+		  document.getElementsByTagName("md-slider")[2].removeAttribute("disabled")
+		  document.getElementsByTagName("md-slider")[3].setAttribute("disabled","")
+      }	  
+	  else {
+		  lightSource = 0
+		  $scope.params.whiteLight = false;
+		  $scope.params.sodium = false;
+		  document.getElementsByTagName("md-slider")[2].removeAttribute("disabled")
+		  document.getElementsByTagName("md-slider")[3].removeAttribute("disabled")
+	  }
+	  updateParams($scope.params)
   }
   
   setCanvaSize(300,300)
