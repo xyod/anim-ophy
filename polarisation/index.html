@@ -1,0 +1,207 @@
+<HTML>
+<HEAD>
+<meta charset="UTF-8">
+<script>
+var time = 0;
+var N = 100;
+Nmax = 500;
+Nmin = 50;
+Dx = 800;
+Dy = Dx;
+EMax = 0.6*Dx/2;
+Ex0 = 1;
+Ey0 = 1;
+ratio = 1;
+
+var ListePts = [];
+var IndListPts = 0;
+var IndListPtsMax = N+2;
+var IndListPtsMaxOK=false;
+
+function UpdateDephase(DivDelta){
+	if (DivDelta!=0) Delta = lambda/DivDelta;
+	else Delta = 0;
+	Dephasage = 2*Math.PI*Delta/lambda;
+}
+
+function UpdateDephaseDeg(phaseDeg){
+	Dephasage = Math.PI*phaseDeg/180;
+}
+
+function InitLP(){
+	ListePts = [];
+	IndListPts = 0;
+	IndListPtsMaxOK=false;
+	IndListPtsMax = N+2;
+}
+
+
+function ChangeDephase(){
+	
+	InitLP();
+	
+	var data = document.getElementById('Lamedonde').value;
+	
+	if (Number.isInteger(parseInt(data, 10)))
+		UpdateDephase(data);
+	else{
+		UpdateDephase(0);
+		data=0;
+	}	
+	document.getElementById('Lamedonde').setAttribute('value',data.toString());	
+
+}
+
+function ChangeDephaseDeg(){
+	
+	InitLP();
+	
+	var data = document.getElementById('dPhi').value;
+	
+	if (Number.isInteger(parseInt(data, 10)))
+		UpdateDephaseDeg(data);
+	else{
+		UpdateDephaseDeg(0);
+		data=0;
+	}	
+	document.getElementById('dPhi').setAttribute('value',data.toString());	
+
+}
+
+function UpdateTheta(angle){
+
+	Ex0 = Math.cos(angle*Math.PI/180);
+	Ey0 = Math.sin(angle*Math.PI/180);
+	
+}
+
+function UpdateRatio(){
+	InitLP();
+	ratio = document.getElementById('EyExRatio').value;
+}
+
+function ChangeTheta(){
+
+	InitLP();
+	
+	var data = document.getElementById('Theta').value;
+	
+	if (Number.isInteger(parseInt(data, 10)))
+		UpdateTheta(data);
+	else{
+		UpdateTheta(0);
+		data=0;
+	}
+
+}
+
+lambda = 1e-6;
+Dephasage = 0;
+UpdateDephase(0);
+pause = false;
+
+
+/*
+var svgns = "http://www.w3.org/2000/svg";
+var svgDocument = evt.target.ownerDocument;
+*/
+
+function InitDrawing(){
+	document.getElementById('svg1').setAttribute('height',Dx);
+	document.getElementById('svg1').setAttribute('width',Dy);
+	document.getElementById('Ex').setAttribute('x1',Dx/2);
+	document.getElementById('Ex').setAttribute('y1',Dy/2);
+	document.getElementById('Ex').setAttribute('x2',EMax);
+	document.getElementById('Ex').setAttribute('y2',Dy/2);
+	document.getElementById('Ey').setAttribute('x1',Dx/2);
+	document.getElementById('Ey').setAttribute('y1',Dy/2);
+	document.getElementById('Ey').setAttribute('x2',Dx/2);
+	document.getElementById('Ey').setAttribute('y2',EMax);
+	document.getElementById('Etot').setAttribute('x1',Dx/2);
+	document.getElementById('Etot').setAttribute('y1',Dy/2);
+}
+
+function UpdateDrawing(){
+
+	if (pause)
+		return;	
+		
+	if (ratio>1)
+	{
+		Ex0 = 1/ratio;
+		Ey0 = 1;
+	}
+	else
+	{
+		Ex0 = 1;
+		Ey0 = ratio;
+	}
+	
+	var xE = Dx/2 + Ex0*EMax*Math.cos(2*Math.PI*time/N);
+	var yE = Dy/2 - Ey0*EMax*Math.cos(2*Math.PI*time/N+Dephasage);
+	
+	document.getElementById('Ex').setAttribute('x2',xE);
+	document.getElementById('Ey').setAttribute('y2',yE);
+	document.getElementById('Etot').setAttribute('x2',xE);
+	document.getElementById('Etot').setAttribute('y2',yE);
+	time++;
+	ListePts[IndListPts] = [xE,yE];
+	IndListPts++;
+	if(IndListPts>=IndListPtsMax)IndListPtsMaxOK=true;
+	IndListPts = IndListPts%IndListPtsMax;
+	var dPath = "M "+ListePts[0][0]+" "+ListePts[0][1];
+	for (var i= 0;i<ListePts.length;i++){
+		dPath += " "+ListePts[i][0]+" "+ListePts[i][1];
+	}
+	if (IndListPtsMaxOK) dPath += " Z";
+	if (!pause)	document.getElementById('trace').setAttribute('d',dPath);
+	
+}
+
+</script>
+</HEAD>
+<BODY>
+<svg id="svg1" xmlns="http://www.w3.org/2000/svg">
+	<defs>
+		<marker id="arrowX" markerWidth="10" markerHeight="10" refx="0" refy="3" orient="auto" markerUnits="strokeWidth" viewBox="0 0 20 20">
+			<path d="M0,0 L0,6 L9,3 z" fill="rgb(255,0,0)" />
+		</marker>
+	</defs>
+	<defs>
+		<marker id="arrowY" markerWidth="10" markerHeight="10" refx="0" refy="3" orient="auto" markerUnits="strokeWidth" viewBox="0 0 20 20">
+			<path d="M0,0 L0,6 L9,3 z" fill="rgb(0,255,0)" />
+		</marker>
+	</defs>
+	<defs>
+		<marker id="arrowXY" markerWidth="10" markerHeight="10" refx="0" refy="3" orient="auto" markerUnits="strokeWidth" viewBox="0 0 20 20">
+			<path d="M0,0 L0,6 L9,3 z" fill="rgb(0,0,0)" />
+		</marker>
+	</defs>
+    <line id="Ex" x1="0" y1="0" x2="0" y2="0" style="stroke:rgb(255,0,0);stroke-width:3" marker-end="url(#arrowX)"/>
+	<line id="Ey" x1="0" y1="0" x2="0" y2="0" style="stroke:rgb(0,255,0);stroke-width:3" marker-end="url(#arrowY)" />
+	<line id="Etot" x1="0" y1="0" x2="0" y2="0" style="stroke:rgb(0,0,0);stroke-width:3" marker-end="url(#arrowXY)" />
+	<path id="trace" d=" " style="stroke:rgba(0,0,0,0.2);stroke-width:2;fill:none"/>
+</svg>
+<br />
+<br />
+
+<big><b>Ey/Ex</b> = </big><input type="text" id="EyExRatio" maxlength="3" value="1" size="3">
+<br />
+<big><b>Différence de phase (degrés) </b> = </big><input type="text" id="dPhi" maxlength="3" value="1" size="3">
+<!-- <big><b>λ</b>/</big><input type="text" id="Lamedonde" maxlength="3" value="1" size="3"> -->
+<!-- <br /> -->
+<!-- <big><b>θ</b>:</big><input type="text" id="Theta" maxlength="3" value="45" size="3">° -->
+<!-- <br /> -->
+<script>
+	InitDrawing();
+	setInterval(function(){ UpdateDrawing(); }, 30);
+	document.getElementById("svg1").onclick=function(){ pause=!pause;};
+	document.getElementById("svg1").ondblclick=function(){ N=N*2; if (N>Nmax) N=Nmin; InitLP();};
+	document.getElementById("EyExRatio").onchange=function(){ UpdateRatio();};
+	document.getElementById("dPhi").onchange=function(){ ChangeDephaseDeg();};
+	//document.getElementById("Lamedonde").onchange=function(){ ChangeDephase();};
+	//document.getElementById("Theta").onchange=function(){ ChangeTheta();};
+</script>
+</BODY>
+</HTML>
+

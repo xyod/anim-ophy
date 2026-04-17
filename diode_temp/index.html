@@ -1,0 +1,278 @@
+<HTML>
+<HEAD>
+<meta charset="UTF-8">
+<script>
+
+	
+
+	var Periode = 20000;
+	var PeriodeOscillo = Periode;
+
+	var NbPts = 3000;
+
+	var tempsMiseEnPause = 0;
+
+	var time = 0;
+	var NDt = 1;
+	var NDtmax = 2;
+	var NDtmin = 0.5;
+	
+	var Dx = 800;
+	var Dy = Dx/3;
+	var marginX = 20
+	var marginY = 20
+	
+	var R = Math.sqrt(0.03);
+	var c=3e8;
+	var lambda0 = 633e-9;
+	var Dnu = 6e9;
+	var dnu = Dnu/NbPts;
+
+	var PlageLambda = 10;
+	var ISL = 0.3;
+
+	var ListePts = [];
+	var IndListPts = 0;
+	//var IndListPtsMax = N+2;
+	var IndListPtsMaxOK=false;
+
+	var ListePtsGain = [];
+	var IndListPtsGain = 0;
+	var IndListPtsMaxGain = NbPts;
+	var IndListPtsMaxOKGain=false;
+
+	var LambdaVsT = [];
+	var NbPtsLambdaVsT = 200;
+	
+	for (var i=0;i<NbPtsLambdaVsT;i++) LambdaVsT[i] = 0;
+	
+	var start = null;
+	var startAQ = null;
+
+	var Pint = 0;
+	var NbSpPint = 0;
+
+	var progress = 0;
+
+	var FWHM = 5;
+
+	var Spectre=[];
+
+	var dLambdaModedT = 0.1;
+	var dLambdaGaindT = 0.3;
+	
+	var laststep = 0;
+	
+	var dT0 = -10;
+	var dT = dT0;
+
+	var pause = true;
+	
+	function InitGraph(){
+		document.getElementById("svg2").innerHTML = "";
+	}
+	
+	function defineSpectrum(){
+	
+		var ind;
+		var shiftPt = -Math.round(dT*dLambdaModedT/PlageLambda*NbPts);
+		var indMax;
+		var	MaxGain = 0;
+		
+		for (var k = -50;k<50;k++){
+		
+			ind = Math.round(ISL*NbPts/PlageLambda)*k-shiftPt;
+			if (ind>=0 && ind <NbPts){
+			
+				if (ListePtsGain[ind][1]>MaxGain){ 
+					MaxGain = ListePtsGain[ind][1];
+					indMax = ind;
+				}
+			}
+			
+		}
+		
+		if (!isNaN(indMax)){
+			var IndLambdaVsT=Math.round(NbPtsLambdaVsT*(dT/30+0.5));
+			if (IndLambdaVsT>=0 && IndLambdaVsT<NbPtsLambdaVsT) LambdaVsT[IndLambdaVsT] = indMax/NbPts;
+		}
+		
+		for (var i=0; i<NbPts;i++){
+			//Spectre[i] = FWHM/2/Math.PI/(Math.pow(.5*FWHM,2)+Math.pow(i-indMax,2));
+			Spectre[i] = i==indMax ? 1 : 0;
+		}	
+		//console.log(Math.max(Spectre))
+	}
+
+	function defineGain(){
+
+		ListePtsGain = [];
+		
+		var shiftPt = -dT*dLambdaGaindT/PlageLambda*NbPts;
+		
+		for (var i=0; i<IndListPtsMaxGain;i++){
+			ListePtsGain.push([i, -.8*Math.pow((i+shiftPt-IndListPtsMaxGain/2)/2,2)/Math.pow(IndListPtsMaxGain/2,2)+1]);
+		}
+
+	}
+
+	//defineGain();
+
+	function step(timestamp) {
+		if (!start) start = timestamp;
+		progress = timestamp - start;
+		defineGain();
+		CalculTrans();
+		defineSpectrum();
+		UpdateDrawing();
+		if (timestamp-laststep>40 && !pause){	
+			laststep = timestamp;
+			dT = dT+NDt*8e-2;
+			if (dT>14) {pause = true; dT=-10;}
+		}
+		document.getElementById("templabel").innerHTML = "T = "+(20+dT).toFixed(1)+" °C ";
+		
+		if (progress < 200000) {
+			window.requestAnimationFrame(step);
+		}
+	}
+
+
+	function ModesCav(i){
+		var m = 4*R/Math.pow(1-R,2);
+		var shiftPt = -dT*dLambdaModedT/PlageLambda*NbPts;
+		return 1/(1+m*Math.pow(Math.sin(2*Math.PI*(i+shiftPt)*PlageLambda/ISL/NbPts/2),2))
+	}
+
+	function CalculTrans(){
+		for (var i=0; i<NbPts;i++){
+			ListePts[i] = [i*Dx/NbPts, Dy-Dy*ModesCav(i)];
+			
+		}
+	}
+
+	function UpdateDrawing(){
+		
+		var dPath = "M "+(ListePts[0][0]+marginX).toString()+" "+ListePts[0][1];
+		var Mspectre = Math.max.apply(null, Spectre);
+		
+		for (var i= 0;i<ListePts.length;i++){
+			dPath += " L "+(ListePts[i][0]+marginX).toString()+" "+ListePts[i][1];
+		}
+		document.getElementById('trace').setAttribute('d',dPath);
+					
+		dPath = "M "+(ListePtsGain[0][0]*Dx/NbPts+marginX).toString()+" "+(Dy-Dy*ListePtsGain[0][1]).toString();
+		for (var i= 0;i<IndListPtsMaxGain;i++){
+			dPath += " L "+(ListePtsGain[i][0]*Dx/NbPts+marginX).toString()+" "+(Dy-0.95*Dy*ListePtsGain[i][1]).toString();
+		}
+		document.getElementById('gain').setAttribute('d',dPath);
+		
+		dPath = "M "+(0+marginX).toString()+" "+(Dy-Dy*Spectre[0]/Mspectre);
+
+		for (var i= 0;i<Spectre.length;i++){
+			dPath += " L "+(i*Dx/NbPts+marginX).toString()+" "+(Dy-Dy*Spectre[i]/Mspectre).toString();
+		}
+		document.getElementById('spectre').setAttribute('d',dPath);
+		
+		var codeLambdaVsT = "";
+		for (var i= 0;i<LambdaVsT.length;i++){
+			if (LambdaVsT[i]!=0) {codeLambdaVsT += '<circle cx="'+(i*Dx/NbPtsLambdaVsT+marginX).toString()+'" cy="'+(Dy-Dy*LambdaVsT[i])+'" r="2" stroke="none" fill="rgba(255,0,0,0.5)" />'; LambdaVsT[i]=0;}
+		}
+		document.getElementById("svg2").innerHTML += codeLambdaVsT;
+		
+	}
+
+	function UpdateGaindT(val){
+	
+		dLambdaGaindT = val;
+		dT = dT0;
+		InitGraph();
+		pause = true;
+	
+	}
+	
+	function UpdateModedT(val){
+
+		dLambdaModedT = val;
+		dT = dT0;
+		InitGraph();
+		pause = true;
+	
+	}
+	
+	function ChangedGaindT(){
+	
+		var data = document.getElementById('dGaindT').value;
+	
+		if (!isNaN(data))
+			UpdateGaindT(data);
+		else{
+			UpdateGaindT(0);
+			data=0;
+		}
+	
+	}
+	
+	function ChangedModedT(){
+	
+		var data = document.getElementById('dModedT').value;
+	
+		if (!isNaN(data))
+			UpdateModedT(data);
+		else{
+			UpdateModedT(0);
+			data=0;
+		}
+	
+	}
+	
+</script>
+</HEAD>
+<BODY>
+
+<svg id="svg1" xmlns="http://www.w3.org/2000/svg">
+	<path id="trace" d="M 10,90 Q 100,15 200,70 " style="stroke:rgba(0,0,0,0.2);stroke-width:2;fill:none"/>
+	<path id="spectre" d="M 10,90 Q 100,15 200,70 " style="stroke:rgba(255,0,0,0.3);stroke-width:2;fill:none"/>
+	<path id="gain" d="M 10,90 Q 100,15 200,70 " style="stroke:rgba(255,100,0,0.3);stroke-width:2;fill:none"/>
+	
+	<path id="Xaxis" d="M 10,270 L  830,270 " style="stroke:rgba(0,0,0,0.4);stroke-width:2;fill:none"/>
+	<path id="Xarrow" d="M 10,4 L  6,10 L 14,10 Z" style="stroke:none;stroke-width:2;fill:rgba(0,0,0,0.4)"/>
+	<path id="Yaxis" d="M 10,270 L  10,10 " style="stroke:rgba(0,0,0,0.4);stroke-width:2;fill:none"/>
+	<path id="Yarrow" d="M 836,270 L  830,266 L 830,274 Z" style="stroke:none;stroke-width:2;fill:rgba(0,0,0,0.4)"/>
+	
+</svg>
+<br />
+<b id="templabel">T = 20,0°C  /  ISL = 0,3 nm</b>
+<br />
+<svg id="svg2" xmlns="http://www.w3.org/2000/svg">
+	
+</svg>
+
+<br />
+<br />
+
+<big><b>Pente gain</b> : </big><input type="text" id="dGaindT" maxlength="3" value="0.3" size="4"> nm/°C
+<br />
+<big><b>Pente modes</b> : </big><input type="text" id="dModedT" maxlength="3" value="0.1" size="4"> nm/°C
+<br />
+
+<script>
+	
+	
+
+	document.getElementById("svg1").onclick=function(){ pause = !pause;};
+	document.getElementById("svg1").ondblclick=function(){ NDt*=2; if (NDt>NDtmax) NDt=NDtmin; };
+	document.getElementById('svg1').setAttribute('height',Dy+marginY);
+	document.getElementById('svg1').setAttribute('width',Dx+2*marginX);
+	document.getElementById('svg2').setAttribute('height',Dy+marginY);
+	document.getElementById('svg2').setAttribute('width',Dx+2*marginX);
+	
+	document.getElementById("dGaindT").onchange=function(){ ChangedGaindT();};
+	document.getElementById("dModedT").onchange=function(){ ChangedModedT();};
+	
+	window.requestAnimationFrame(step);
+
+</script>
+</BODY>
+</HTML>
+

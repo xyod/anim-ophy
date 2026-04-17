@@ -1,0 +1,106 @@
+<HTML>
+<HEAD>
+<meta charset="UTF-8">
+
+</HEAD>
+<BODY>
+
+<canvas id="c" width="800" height="600"></canvas>
+
+<script>
+  var c = document.getElementById('c');
+  var ctx = c.getContext('2d');
+  
+  var Nx = 800;
+  var Ny= 600;
+  
+  ctx.clearRect(0, 0, Nx, Ny);
+  
+  var SourceA = {x:Nx*.8, y:0};
+  var SourceA0 = {x:Nx*.8, y:0};
+  
+  var Interf1 = {x1:0, y1:Ny/2, x2:Nx, y2:Ny/2};  
+  var Interf2 = {x1:0, y1:Ny/2-5, x2:Nx, y2:Ny/2+25};  
+  
+  var imgData = ctx.getImageData(0,0,Nx,Ny);
+  
+  
+  function Normaliser(MyVec){
+  
+	var Norm = Math.sqrt(Math.pow(MyVec.x,2)+Math.pow(MyVec.y,2));
+	return {x:MyVec.x/Norm,y:MyVec.y/Norm};
+	
+  }
+  
+  function ProdVec(MyVec1,MyVec2){
+  
+	return MyVec1.x*MyVec2.x+MyVec1.y*MyVec2.y;
+	
+  }
+  
+  
+  function CalculPosPtImg(Source){
+  
+	var VecS1 = {x:Source.x-Interf1.x1,y:Source.y-Interf1.y1};
+	var VecS2 = {x:Source.x-Interf2.x1,y:Source.y-Interf2.y1};
+	var VecI1 = {x:Interf1.x2-Interf1.x1,y:Interf1.y2-Interf1.y1};
+	var VecI2 = {x:Interf2.x2-Interf2.x1,y:Interf2.y2-Interf2.y1};
+	
+	VecI1 = Normaliser(VecI1);
+	VecI2 = Normaliser(VecI2);
+  
+
+  
+	var VecI1p = {x:-VecI1.y,y:VecI1.x};
+	var VecI2p = {x:-VecI2.y,y:VecI2.x};
+  
+  	
+  
+	return {Source1:{x:ProdVec(VecS1,VecI1)*VecI1.x-ProdVec(VecS1,VecI1p)*VecI1p.x+Interf1.x1,y:ProdVec(VecS1,VecI1)*VecI1.y-ProdVec(VecS1,VecI1p)*VecI1p.y+Interf1.y1}, Source2:{x:ProdVec(VecS2,VecI2)*VecI2.x-ProdVec(VecS2,VecI2p)*VecI2p.x+Interf2.x1,y:ProdVec(VecS2,VecI2)*VecI2.y-ProdVec(VecS2,VecI2p)*VecI2p.y+Interf2.y1}};
+	  
+  }
+  
+  function UpdateDrawing(Source1,Source2,UpdateFrac){
+  
+	var Int;
+	if (!UpdateFrac) UpdateFrac = 1;
+  
+	imgData = ctx.getImageData(0,0,Nx,Ny);
+	
+	 for (var j = 0; j < Ny; j++){
+			for (var i = 0; i < Nx; i++){
+ 
+				delta = 4*(Math.sqrt(Math.pow(Source1.x-i,2)+Math.pow(Source1.y-j,2))-Math.sqrt(Math.pow(Source2.x-i,2)+Math.pow(Source2.y-j,2)));
+				
+				//Int = 0;
+				//for (var o = 0; o < 100; o++) Int += 1+Math.cos(delta+o/100);
+				
+				imgData.data[(j*Nx+i)*4+1] = Math.round(imgData.data[(j*Nx+i)*4+1]*(1-UpdateFrac)+UpdateFrac*(127*(1+Math.cos(delta))));
+				imgData.data[(j*Nx+i)*4+3] = 255;
+				//ctx.fillStyle = 'rgba(' + Math.round(127*(1+Math.cos(delta))) + ',0,0,1)';
+				//ctx.fillRect(i, j, 1, 1);
+				
+			 }
+	  
+	  }
+	  
+	  ctx.putImageData(imgData, 0, 0);
+	  
+  }
+
+  MesSources = CalculPosPtImg(SourceA);
+  UpdateDrawing(MesSources.Source1,MesSources.Source2,0.04);
+ 
+  for(uu = 0;uu<50;uu++){
+	
+	SourceA = {x:SourceA0.x+100*(Math.random()-.5), y:100*(Math.random()-.5)};
+	MesSources = CalculPosPtImg(SourceA);
+	UpdateDrawing(MesSources.Source1,MesSources.Source2,.04);
+ 
+  }
+  
+</script>
+
+</BODY>
+</HTML>
+

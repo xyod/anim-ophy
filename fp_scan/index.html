@@ -1,0 +1,364 @@
+<HTML>
+<HEAD>
+<meta charset="UTF-8">
+<script>
+
+var Periode = 20000;
+var PeriodeOscillo = Periode;
+
+var NbPts = 3000;
+
+var tempsMiseEnPause = 0;
+
+var time = 0;
+var N = 100;
+var Nmax = 500;
+var Nmin = 50;
+var Dx = 700;
+var Dy = Dx/4;
+var xMargin = 10;
+var yMargin = 10;
+var EMax = 0.6*Dx/2;
+var Ex0 = 1;
+var Ey0 = 1;
+var R = 0.95;
+var c=3e8;
+var e0=0.05;
+var e=e0;
+var ePrev = e0;
+var deMax = 1e-5*e;
+var lambda0 = 633e-9;
+var nu0=c/lambda0;
+var Dnu = 6e9;
+var dnu = Dnu/NbPts;
+
+
+var ListePts = [];
+var IndListPts = 0;
+var IndListPtsMax = N+2;
+var IndListPtsMaxOK=false;
+
+var ListePtsOSC = [];
+ListePtsOSC[0] = [0,0];
+var IndListPtsOSC = 0;
+var IndListPtsMaxOSC = 1500;
+var SampPeriodeOSC = PeriodeOscillo/IndListPtsMaxOSC;
+var IndListPtsMaxOKOSC=false;
+
+var ListePtsOSCX = [];
+ListePtsOSCX[0] = [0,0];
+var IndListPtsOSCX = 0;
+var IndListPtsMaxOSCX = 1500;
+var SampPeriodeOSCX = PeriodeOscillo/IndListPtsMaxOSC;
+var IndListPtsMaxOKOSCX=false;
+
+//var NbPts = 3000;
+
+var start = null;
+var startAQ = null;
+
+var Pint = 0;
+var NbSpPint = 0;
+
+var progress = 0;
+
+var FWHM = 5;
+
+var Spectre=[];
+
+for (var i=0; i<NbPts;i++){
+	Spectre[i] = 0;
+}
+Spectre[Math.round(NbPts/2)] = 1/6;
+Spectre[Math.round(NbPts/2)+1] = 1/6;
+Spectre[Math.round(NbPts/2)+2] = 1/6;
+Spectre[Math.round(NbPts/2)+3] = 1/6;
+Spectre[Math.round(NbPts/2)+4] = 1/6;
+Spectre[Math.round(NbPts/2)+5] = 1/6;
+
+function defineSpectrum(optionSpectrum){
+
+	var AmpSB = 0.3;
+
+	if (optionSpectrum==0){
+		Spectre[Math.round(NbPts/2)] = 1/6;
+		Spectre[Math.round(NbPts/2)+1] = 1/6;
+		Spectre[Math.round(NbPts/2)+2] = 1/6;
+		Spectre[Math.round(NbPts/2)+3] = 1/6;
+		Spectre[Math.round(NbPts/2)+4] = 1/6;
+		Spectre[Math.round(NbPts/2)+5] = 1/6;
+	} else if (optionSpectrum==1){
+		for (var i=0; i<NbPts;i++){
+			Spectre[i] = FWHM/2/Math.PI/(Math.pow(.5*FWHM,2)+Math.pow(i-NbPts/2,2));
+		}
+	
+	} else if (optionSpectrum==2){
+		for (var i=0; i<NbPts;i++){
+			Spectre[i] = FWHM/2/Math.PI/(Math.pow(.5*FWHM,2)+Math.pow(i-NbPts/2,2));
+		}
+		for (var i=0; i<NbPts;i++){
+			Spectre[i] += AmpSB*FWHM/2/Math.PI/(Math.pow(.5*FWHM,2)+Math.pow(i-NbPts/2-16*FWHM,2));
+		}
+		for (var i=0; i<NbPts;i++){
+			Spectre[i] += AmpSB*FWHM/2/Math.PI/(Math.pow(.5*FWHM,2)+Math.pow(i-NbPts/2+16*FWHM,2));
+		}
+	
+	} else if (optionSpectrum==3){
+	
+	
+	}
+}
+
+function step(timestamp) {
+	if (!start) start = timestamp;
+	progress = timestamp - start;
+	//element.style.left = Math.min(progress/10, 200) + "px";
+	if (!pause)	e = e0-deMax*Dents(Math.round(progress)%Periode);
+
+	CalculTrans();
+	UpdateDrawing();
+	if (progress < 200000) {
+		window.requestAnimationFrame(step);
+	}
+}
+
+
+function TransFP(nu,eIN){
+	eIN = typeof eIN !== 'undefined' ? eIN : e;
+	var m = 4*R/Math.pow(1-R,2);
+	dPhi = 4*eIN*2*Math.PI*nu/c;
+	return 1/(1+m*Math.pow(Math.sin(dPhi/2),2))
+}
+
+function CalculPint(eStart,eEnd) {
+
+	var Transmission = 0;
+	var NPCalc = 10;
+	var De = eEnd-eStart;
+	
+	for (var j = 1; j<=NPCalc;j++){
+		for (var i=Math.round(NbPts/4); i<3/4*NbPts;i++){
+			Transmission += TransFP(nu0+dnu*i,eStart+j*De/NPCalc)*Spectre[i];
+		}
+	}
+	
+	return Transmission/NPCalc;
+
+}
+
+function CalculTrans(){
+	var Transmission = 0;
+	if (!startAQ) startAQ = (new Date).getTime();
+	for (var i=0; i<NbPts;i++){
+		TransFPN = TransFP(nu0+dnu*i);
+		ListePts[i] = [i*Dx/NbPts, Dy-Dy*TransFPN];
+		Transmission += TransFPN*Spectre[i];
+	}
+	
+	var DT = (new Date).getTime()-startAQ;
+	if (DT > SampPeriodeOSC){
+		Pint = CalculPint(ePrev,e);
+		var xPrec = 0;
+		if (IndListPtsOSC!=0) xPrec = ListePtsOSC[IndListPtsOSC-1][0];
+		var xOSC = xPrec+DT/SampPeriodeOSC*Dx/IndListPtsMaxOSC;
+		ListePtsOSC[IndListPtsOSC] = [xOSC,Dy-Dy*Pint];
+		IndListPtsOSC++;
+		ListePtsOSCX[IndListPtsOSCX] = [xOSC,Dy-Dy*(e0-e)/deMax];
+		IndListPtsOSCX++;
+		if (xOSC >= Dx) {
+			IndListPtsOSC = 0;
+			IndListPtsOSCX = 0;
+		}
+		startAQ = (new Date).getTime();
+		ePrev = e;
+	}
+	
+	//= ;
+}
+
+function Dents(temps){
+	
+	seuil = 0.95;
+	tDuMax = 2*Periode*Math.asin(seuil)/Math.PI;
+	if (Math.sin(2*Math.PI*temps/4/Periode)<seuil) return temps/(tDuMax);
+	else return (1-(temps-tDuMax)/(Periode-tDuMax));
+
+}
+
+pause = false;
+
+function xWithMargin(oldX){
+	var rescaleX = (Dx-2*xMargin)/Dx;
+	return rescaleX*oldX+xMargin;
+}
+
+function yWithMargin(oldY){
+	var rescaleY = (Dy-2*yMargin)/Dy;
+	return rescaleY*oldY+yMargin;
+}
+
+function UpdateDrawing(){
+	var dPath = "M "+xWithMargin(ListePts[0][0])+" "+yWithMargin(ListePts[0][1]);
+	for (var i= 0;i<ListePts.length;i++){
+		dPath += " L "+xWithMargin(ListePts[i][0])+" "+yWithMargin(ListePts[i][1]);
+	}
+	document.getElementById('trace').setAttribute('d',dPath);
+	
+	dPath = "M "+xWithMargin(ListePtsOSC[0][0])+" "+yWithMargin(ListePtsOSC[0][1]);
+	for (var i= 0;i<IndListPtsOSC;i++){
+		dPath += " L "+xWithMargin(ListePtsOSC[i][0])+" "+yWithMargin(ListePtsOSC[i][1]);
+	}
+	document.getElementById('traceI').setAttribute('d',dPath);
+	
+	dPath = "M "+xWithMargin(ListePtsOSCX[0][0])+" "+yWithMargin(ListePtsOSCX[0][1]);
+	for (var i= 0;i<IndListPtsOSCX;i++){
+		dPath += " L "+xWithMargin(ListePtsOSCX[i][0])+" "+yWithMargin(ListePtsOSCX[i][1]);
+	}
+	document.getElementById('traceX').setAttribute('d',dPath);
+	
+}
+
+function UpdateSpectre(){
+	var Mspectre = Math.max.apply(null, Spectre);
+	var dPath = "M "+xWithMargin(0)+" "+yWithMargin(Dy-Dy*Spectre[0]/Mspectre);
+	for (var i= 0;i<Spectre.length;i++){
+		dPath += " L "+xWithMargin(i*Dx/NbPts)+" "+yWithMargin(Dy-Dy*Spectre[i]/Mspectre);
+	}
+	document.getElementById('spectre').setAttribute('d',dPath);
+
+}
+</script>
+</HEAD>
+<BODY>
+<svg id="svg1" xmlns="http://www.w3.org/2000/svg">
+	<defs>
+		<marker id="arrow" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+		  <path d="M0,0 L0,6 L9,3 z" fill="#f000000" />
+		</marker>
+	</defs>
+    <line style="stroke:rgba(0,0,0,0.5)" stroke-dasharray="5, 2" x1="7" y1="165" x2="650" y2="165" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />
+	<line style="stroke:rgba(0,0,0,0.5)" stroke-dasharray="5, 2" x1="7" y1="165" x2="7" y2="15" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />
+	<path id="trace" d="M 10,90 Q 100,15 200,70 " style="stroke:rgba(0,0,0,0.8);stroke-width:2;fill:none"/>
+	<path id="spectre" d="M 10,90 Q 100,15 200,70 " style="stroke:rgba(255,0,0,0.8);stroke-width:2;fill:none"/>
+	<text x="610" y="158" font-family="Verdana" id="xlabel">Fréquence</text>
+	<text x="10" y="20" font-family="Verdana" id="ylabel">FP Transmission</text>
+	<text x="10" y="40" font-family="Verdana" id="ylabel" fill="red">DSP</text>
+	
+</svg>
+<br /><br />
+<svg id="svg2" xmlns="http://www.w3.org/2000/svg">
+	<defs>
+		<marker id="arrow" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+		  <path d="M0,0 L0,6 L9,3 z" fill="#f000000" />
+		</marker>
+	</defs>
+    <line style="stroke:rgba(0,0,0,0.5)" stroke-dasharray="5, 2" x1="7" y1="165" x2="650" y2="165" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />
+	<line style="stroke:rgba(0,0,0,0.5)" stroke-dasharray="5, 2" x1="7" y1="165" x2="7" y2="15" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />
+	<path id="traceI" d="M 10,90 Q 100,15 200,70 " style="stroke:rgba(0,0,0,0.8);stroke-width:2;fill:none"/>
+	<text x="640" y="158" font-family="Verdana" id="xlabel">Temps</text>
+	<text x="10" y="30" font-family="Verdana" id="ylabel">Signal photodiode</text>
+</svg>
+<br /><br />
+<svg id="svg3" xmlns="http://www.w3.org/2000/svg">
+	<defs>
+		<marker id="arrow" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+		  <path d="M0,0 L0,6 L9,3 z" fill="#f000000" />
+		</marker>
+	</defs>
+    <line style="stroke:rgba(0,0,0,0.5)" stroke-dasharray="5, 2" x1="7" y1="165" x2="650" y2="165" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />
+	<line style="stroke:rgba(0,0,0,0.5)" stroke-dasharray="5, 2" x1="7" y1="165" x2="7" y2="15" stroke="#000" stroke-width="2" marker-end="url(#arrow)" />
+	<path id="traceX" d="M 10,90 Q 100,15 200,70 " style="stroke:rgba(0,0,0,0.8);stroke-width:2;fill:none"/>
+	<text x="640" y="160" font-family="Verdana" id="xlabel">Temps</text>
+	<text x="10" y="30" font-family="Verdana" id="ylabel">Signal piezo</text>
+</svg>
+<br />
+
+<!--
+<svg xmlns:svg="http://www.w3.org/2000/svg"
+     xmlns="http://www.w3.org/2000/svg"
+     version="1.1"
+     width="400"
+     height="200">
+    
+    <style>
+      .draggable {
+        cursor: move;
+      }
+    </style>
+    
+    <script type="text/ecmascript"><![CDATA[
+    var selectedElement = 0;
+    var currentX = 0;
+    var currentY = 0;
+    var currentMatrix = 0;
+
+    function selectElement(evt) {
+      selectedElement = evt.target;
+      currentX = evt.clientX;
+      currentY = evt.clientY;
+      currentMatrix = selectedElement.getAttributeNS(null, "transform").slice(7,-1).split(' ');
+    
+      for(var i=0; i<currentMatrix.length; i++) {
+        currentMatrix[i] = parseFloat(currentMatrix[i]);
+      }
+      
+      selectedElement.setAttributeNS(null, "onmousemove", "moveElement(evt)");
+      selectedElement.setAttributeNS(null, "onmouseout", "deselectElement(evt)");
+      selectedElement.setAttributeNS(null, "onmouseup", "deselectElement(evt)");
+    }
+        
+    function moveElement(evt) {
+      var dx = evt.clientX - currentX;
+      var dy = evt.clientY - currentY;
+      currentMatrix[4] += dx;
+      //currentMatrix[5] += dy;
+      e = e0+deMax*.6*(evt.clientX)/400;
+	  console.log(evt.clientX);
+      selectedElement.setAttributeNS(null, "transform", "matrix(" + currentMatrix.join(' ') + ")");
+      currentX = evt.clientX;
+      currentY = evt.clientY;
+    }
+        
+    function deselectElement(evt) {
+      if(selectedElement != 0){
+          selectedElement.removeAttributeNS(null, "onmousemove");
+          selectedElement.removeAttributeNS(null, "onmouseout");
+          selectedElement.removeAttributeNS(null, "onmouseup");
+          selectedElement = 0;
+          }
+        }
+        
+    ]]> </script>
+    
+
+    <rect x="0.5" y="0.5" width="399" height="199" fill="none" stroke="none"/>
+    
+    <rect class="draggable"
+          x="30" y="30"
+          width="30" height="60"
+          fill="blue"
+          transform="matrix(1 0 0 1 0 0)"
+          onmousedown="selectElement(evt)"/>
+          
+
+</svg>
+-->
+
+<script>
+	document.getElementById("svg1").onclick=function(){ pause = !pause; if (pause)tempsMiseEnPause = (new Date).getTime(); else {start += (new Date).getTime()-tempsMiseEnPause;}};
+	document.getElementById("svg1").ondblclick=function(){ N=N*2; if (N>Nmax) N=Nmin; InitLP();};
+	document.getElementById('svg1').setAttribute('height',Dy);
+	document.getElementById('svg1').setAttribute('width',Dx);
+	document.getElementById('svg2').setAttribute('height',Dy);
+	document.getElementById('svg2').setAttribute('width',Dx);
+	document.getElementById('svg3').setAttribute('height',Dy);
+	document.getElementById('svg3').setAttribute('width',Dx);
+	
+	defineSpectrum(2);
+	UpdateSpectre();
+	
+	window.requestAnimationFrame(step);
+</script>
+</BODY>
+</HTML>
+
