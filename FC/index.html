@@ -373,7 +373,8 @@
 <!-- ======================= HUYGENS-FRESNEL ======================= -->
 <section class="tab" id="huygens" role="tabpanel" aria-labelledby="tab-huygens">
   <p class="lead">Chaque point de l'ouverture, atteint par l'onde incidente, réémet une ondelette ; l'onde diffractée est la somme de ces ondelettes,
-    avec leurs phases. Cliquez dans la figure pour placer le point d'observation P.</p>
+    avec leurs phases. Cliquez dans la figure pour placer le point d'observation P. En vue « champ instantané », chaque point oscille
+    à la fréquence de l'onde (orange &harr; bleu) ; la figure d'interférence, stable dans le temps, est celle de l'<b>intensité moyenne</b>.</p>
   <div class="card fig"><canvas id="h-field" aria-label="Champ diffracté par une ouverture, somme d'ondelettes secondaires" style="cursor:crosshair"></canvas></div>
   <div class="grid2" style="margin-top:12px">
     <div class="card fig"><canvas id="h-phasor" aria-label="Somme des contributions au point P (diagramme de Fresnel)"></canvas></div>
@@ -1867,9 +1868,12 @@ const Huygens = (() => {
       gF.lineWidth = 1;
       const r0 = ((wt + Math.PI / 4) / (2 * Math.PI)) % 1;
       for (let n = 0; n < src.length; n += step) {
-        for (let m = 0; m < 7; m++) {
+        for (let m = 0; m < 8; m++) {
           const r = r0 + m;
-          gF.strokeStyle = 'rgba(0,48,91,' + (0.55 * (1 - m / 7)).toFixed(3) + ')';
+          // opacité fonction continue du rayon : pas de saut quand les crêtes changent d'indice
+          const al = 0.55 * Math.min(1, r / 0.5) * Math.max(0, 1 - r / 7.5);
+          if (al <= 0) continue;
+          gF.strokeStyle = 'rgba(0,48,91,' + al.toFixed(3) + ')';
           gF.beginPath(); gF.arc(G.X(0), G.Y(src[n]), r * G.s, -Math.PI / 2, Math.PI / 2); gF.stroke();
         }
       }
@@ -1918,7 +1922,7 @@ const Huygens = (() => {
     const pts = [[0, 0]];
     for (const [cr, ci] of list) { const p = pts[pts.length - 1]; pts.push([p[0] + cr * c - ci * s, p[1] + cr * s + ci * c]); }
     let mx = 1e-6;
-    for (const p of pts) mx = Math.max(mx, Math.abs(p[0]), Math.abs(p[1]));
+    for (const p of pts) mx = Math.max(mx, Math.hypot(p[0], p[1]));   // invariant par rotation : échelle fixe
     const R = Math.min(W, H - 50) / 2 - 14, k = R / mx, cx = W / 2, cy = 30 + (H - 30) / 2;
     gP.strokeStyle = '#e1e4e8'; gP.lineWidth = 1;
     gP.beginPath(); gP.moveTo(cx - R - 8, cy); gP.lineTo(cx + R + 8, cy); gP.moveTo(cx, cy - R - 8); gP.lineTo(cx, cy + R + 8); gP.stroke();
