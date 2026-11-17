@@ -270,14 +270,18 @@
 
 <!-- ======================= YOUNG ======================= -->
 <section class="tab" id="young" role="tabpanel" aria-labelledby="tab-young">
-  <p class="lead">Deux fentes fines séparées de <i>a</i> sont éclairées par une source placée à <i>d</i> = 10 cm ; l'écran est à <i>D</i> = 20 cm.</p>
+  <p class="lead">Une fente unique ou deux fentes séparées de <i>a</i> sont éclairées par une source placée à <i>d</i> = 10 cm ; l'écran est à <i>D</i> = 20 cm.</p>
   <div class="stack">
     <div class="card fig"><canvas id="y-scheme" aria-label="Schéma des fentes d'Young"></canvas></div>
     <div class="card fig"><canvas id="y-screen" aria-label="Figure d'interférence et profil d'intensité"></canvas></div>
   </div>
   <div class="panel">
     <div class="card">
-      <div class="row"><label for="y-a">Distance des fentes <i>a</i></label><input type="range" id="y-a" min="50" max="500" step="5" value="200"><output id="y-aOut"></output></div>
+      <div class="radio" role="radiogroup" aria-label="Nombre de fentes">
+        <label><input type="radio" name="y-mode" value="double" checked> Fentes doubles (Young)</label>
+        <label><input type="radio" name="y-mode" value="single"> Fente simple (diffraction)</label>
+      </div>
+      <div class="row" id="y-aRow"><label for="y-a">Distance des fentes <i>a</i></label><input type="range" id="y-a" min="50" max="500" step="5" value="200"><output id="y-aOut"></output></div>
       <div class="row"><label for="y-b">Largeur des fentes <i>b</i></label><input type="range" id="y-b" min="5" max="100" step="1" value="20"><output id="y-bOut"></output></div>
       <div class="row" id="y-lambdaRow"><label for="y-lambda">Longueur d'onde &lambda;</label><input type="range" id="y-lambda" min="400" max="750" step="1" value="630"><output id="y-lambdaOut"></output></div>
       <div class="row"><label for="y-x0">Position de la source <i>x</i><sub>0</sub></label><input type="range" id="y-x0" min="-500" max="500" step="5" value="0"><output id="y-x0Out"></output></div>
@@ -289,9 +293,9 @@
     <div class="card">
       <h2>Grandeurs</h2>
       <table>
-        <tr><td>Interfrange <i>i</i> = &lambda;<i>D</i>/<i>a</i></td><td id="y-iI"></td></tr>
-        <tr><td>Frange centrale <i>y</i><sub>0</sub> = &minus;<i>x</i><sub>0</sub><i>D</i>/<i>d</i></td><td id="y-iY0"></td></tr>
-        <tr><td>Contraste |sinc(&pi;<i>a</i>&Delta;<i>x</i>/&lambda;<i>d</i>)|</td><td id="y-iC"></td></tr>
+        <tr><td id="y-iILabel">Interfrange <i>i</i> = &lambda;<i>D</i>/<i>a</i></td><td id="y-iI"></td></tr>
+        <tr><td>Centre de la figure <i>y</i><sub>0</sub> = &minus;<i>x</i><sub>0</sub><i>D</i>/<i>d</i></td><td id="y-iY0"></td></tr>
+        <tr id="y-iCRow"><td>Contraste |sinc(&pi;<i>a</i>&Delta;<i>x</i>/&lambda;<i>d</i>)|</td><td id="y-iC"></td></tr>
         <tr><td>Demi-largeur de diffraction &lambda;<i>D</i>/<i>b</i></td><td id="y-iW"></td></tr>
       </table>
       <p class="hint" id="y-regime"></p>
@@ -303,8 +307,12 @@
       d'interfrange <i>i</i> = &lambda;<i>D</i>/<i>a</i>, et se décalent quand la source se déplace. La diffraction par chaque fente
       de largeur <i>b</i> module l'intensité par une enveloppe sinc&sup2;. Une source étendue de largeur &Delta;<i>x</i> brouille les
       franges : le contraste s'annule pour &Delta;<i>x</i> = &lambda;<i>d</i>/<i>a</i> puis les franges réapparaissent, inversées.
-      En lumière blanche, seule la frange centrale est blanche, entourée de franges irisées.</p>
-    <p class="model">Intensité : <i>I</i>(<i>y</i>) = sinc&sup2;(&pi;<i>by</i>/&lambda;<i>D</i>) &middot; [1 + sinc(&pi;<i>a</i>&Delta;<i>x</i>/&lambda;<i>d</i>) cos(2&pi;&delta;/&lambda;)].
+      En lumière blanche, seule la frange centrale est blanche, entourée de franges irisées.
+      Avec une <b>fente simple</b>, il ne reste que la diffraction : une tache centrale de largeur 2&lambda;<i>D</i>/<i>b</i>, deux fois plus large
+      que les taches secondaires, d'autant plus large que la fente est étroite.</p>
+    <p class="model">Intensité (fentes doubles) : <i>I</i>(<i>y</i>) = sinc&sup2;(&pi;<i>b</i>&theta;/&lambda;) &middot; [1 + sinc(&pi;<i>a</i>&Delta;<i>x</i>/&lambda;<i>d</i>) cos(2&pi;&delta;/&lambda;)],
+      avec &theta; = <i>y</i>/<i>D</i> + <i>x</i><sub>0</sub>/<i>d</i> ; fente simple : <i>I</i>(<i>y</i>) = sinc&sup2;(&pi;<i>b</i>&theta;/&lambda;), moyennée sur la largeur de la source.
+      Intensités normalisées à 1 au maximum.
       Le schéma n'est pas à l'échelle.</p>
   </div>
 </section>
@@ -1190,7 +1198,7 @@ const Mich = (() => {
    ===================================================================== */
 const Young = (() => {
   const Dscreen = 200, Dsource = 100, YMAX = 5;      // mm
-  let a = 200, b = 20, lambda = 630, x0 = 0, dxs = 0, white = false, dirty = true;
+  let a = 200, b = 20, lambda = 630, x0 = 0, dxs = 0, white = false, single = false, dirty = true;
   const cvS = $('y-scheme'), gS = cvS.getContext('2d');
   const cvE = $('y-screen'), gE = cvE.getContext('2d');
   let DS, DE, cols = null;
@@ -1198,7 +1206,17 @@ const Young = (() => {
   /* intensité normalisée (0..2) en y (mm) pour une longueur d'onde lam (nm) */
   function intensity(y, lam) {
     const L = lam * 1e-6, am = a * 1e-3, bm = b * 1e-3;
-    const env = sinc(Math.PI * bm * y / (L * Dscreen)) ** 2;
+    const th = y / Dscreen + x0 * 1e-3 / Dsource;           // direction par rapport à l'onde incidente
+    if (single) {
+      if (dxs <= 0) return 2 * sinc(Math.PI * bm * th / L) ** 2;
+      let sum = 0;                                         // source étendue : somme incohérente
+      for (let k = 0; k < 41; k++) {
+        const t2 = th + dxs * 1e-3 * (k / 40 - 0.5) / Dsource;
+        sum += sinc(Math.PI * bm * t2 / L) ** 2;
+      }
+      return 2 * sum / 41;
+    }
+    const env = sinc(Math.PI * bm * th / L) ** 2;
     const V = sinc(Math.PI * am * dxs * 1e-3 / (L * Dsource));
     const delta = am * (y / Dscreen + x0 * 1e-3 / Dsource);
     return env * (1 + V * Math.cos(2 * Math.PI * delta / L));
@@ -1235,12 +1253,17 @@ const Young = (() => {
     // rayons
     gS.strokeStyle = col; gS.lineWidth = 1.8;
     gS.beginPath();
-    for (const s of [s1, s2]) { gS.moveTo(xs, sy); gS.lineTo(xp, s); gS.lineTo(xe, py); }
+    const slits = single ? [yc] : [s1, s2];
+    for (const s of slits) { gS.moveTo(xs, sy); gS.lineTo(xp, s); gS.lineTo(xe, py); }
+    if (single) {                                          // faisceau diffracté
+      const yz = (sgn) => yToPx(Math.max(-YMAX, Math.min(YMAX, y0 + sgn * (white ? 550 : lambda) * 1e-6 * Dscreen / (b * 1e-3))));
+      gS.moveTo(xp, yc); gS.lineTo(xe, yz(1)); gS.moveTo(xp, yc); gS.lineTo(xe, yz(-1));
+    }
     gS.stroke();
     if (half > 1) {
       gS.strokeStyle = cssRGB(white ? [0.79, 0.64, 0.15] : nmToRGBNorm(lambda), 0.25); gS.lineWidth = 1;
       gS.beginPath();
-      for (const s of [s1, s2]) { gS.moveTo(xs, sy - half); gS.lineTo(xp, s); gS.moveTo(xs, sy + half); gS.lineTo(xp, s); }
+      for (const s of slits) { gS.moveTo(xs, sy - half); gS.lineTo(xp, s); gS.moveTo(xs, sy + half); gS.lineTo(xp, s); }
       gS.stroke();
     }
     // source
@@ -1249,9 +1272,15 @@ const Young = (() => {
     // plaque percée
     gS.fillStyle = '#333';
     const top = 18, bot = H - 18;
-    gS.fillRect(xp - 3, top, 6, s1 - gap / 2 - top);
-    gS.fillRect(xp - 3, s1 + gap / 2, 6, s2 - s1 - gap);
-    gS.fillRect(xp - 3, s2 + gap / 2, 6, bot - s2 - gap / 2);
+    if (single) {
+      const g1 = 3 + b * 0.12;
+      gS.fillRect(xp - 3, top, 6, yc - g1 / 2 - top);
+      gS.fillRect(xp - 3, yc + g1 / 2, 6, bot - yc - g1 / 2);
+    } else {
+      gS.fillRect(xp - 3, top, 6, s1 - gap / 2 - top);
+      gS.fillRect(xp - 3, s1 + gap / 2, 6, s2 - s1 - gap);
+      gS.fillRect(xp - 3, s2 + gap / 2, 6, bot - s2 - gap / 2);
+    }
     // écran avec la figure
     if (cols) {
       const n = cols.length;
@@ -1271,8 +1300,12 @@ const Young = (() => {
     // a
     gS.strokeStyle = BLUE; gS.fillStyle = BLUE;
     const ax = xp - 18;
-    arrow(gS, ax, yc, ax, s1, BLUE, 1, 6); arrow(gS, ax, yc, ax, s2, BLUE, 1, 6);
-    gS.textAlign = 'right'; gS.fillText('a', ax - 6, yc);
+    if (single) {
+      gS.textAlign = 'right'; gS.fillText('fente de largeur b', xp - 10, yc - 16);
+    } else {
+      arrow(gS, ax, yc, ax, s1, BLUE, 1, 6); arrow(gS, ax, yc, ax, s2, BLUE, 1, 6);
+      gS.textAlign = 'right'; gS.fillText('a', ax - 6, yc);
+    }
     gS.font = '11px ' + FONT; gS.fillStyle = GREY; gS.textAlign = 'center';
     gS.fillText('d = 10 cm', (xs + xp) / 2, H - 10);
     gS.fillText('D = 20 cm', (xp + xe) / 2, H - 10);
@@ -1315,14 +1348,16 @@ const Young = (() => {
     gE.fillStyle = '#5d6670'; gE.textAlign = 'right'; gE.textBaseline = 'bottom'; gE.fillText('y (mm)', x1p, py1 - 2);
     gE.save(); gE.beginPath(); gE.rect(x0p, py0 - 4, n, py1 - py0 + 4); gE.clip();
     const curves = white ? [[450, '#3b6fd8'], [550, '#2d9a3a'], [650, '#d0342c']] : [[lambda, cssRGB(nmToRGBNorm(lambda).map((v) => v * 0.85))]];
-    // enveloppe de diffraction
-    gE.strokeStyle = 'rgba(0,48,91,0.5)'; gE.setLineDash([5, 4]); gE.lineWidth = 1.2; gE.beginPath();
-    for (let i = 0; i <= n; i++) {
-      const y = -YMAX + i / n * 2 * YMAX, L = (white ? 550 : lambda) * 1e-6;
-      const e = 2 * sinc(Math.PI * b * 1e-3 * y / (L * Dscreen)) ** 2;
-      if (i) gE.lineTo(x0p + i, PY(e)); else gE.moveTo(x0p, PY(e));
+    // enveloppe de diffraction (fentes doubles)
+    if (!single) {
+      gE.strokeStyle = 'rgba(0,48,91,0.5)'; gE.setLineDash([5, 4]); gE.lineWidth = 1.2; gE.beginPath();
+      for (let i = 0; i <= n; i++) {
+        const y = -YMAX + i / n * 2 * YMAX, L = (white ? 550 : lambda) * 1e-6;
+        const e = 2 * sinc(Math.PI * b * 1e-3 * (y / Dscreen + x0 * 1e-3 / Dsource) / L) ** 2;
+        if (i) gE.lineTo(x0p + i, PY(e)); else gE.moveTo(x0p, PY(e));
+      }
+      gE.stroke(); gE.setLineDash([]);
     }
-    gE.stroke(); gE.setLineDash([]);
     for (const [lam, c] of curves) {
       gE.strokeStyle = c; gE.lineWidth = white ? 1.4 : 2; gE.beginPath();
       for (let i = 0; i <= n; i++) {
@@ -1332,8 +1367,25 @@ const Young = (() => {
       gE.stroke();
     }
     gE.restore();
+    const lamI = white ? 550 : lambda;
+    if (single) {
+      // largeur de la tache centrale entre ses deux premiers zéros
+      const yc0 = -x0 * 1e-3 * Dscreen / Dsource, hw = lamI * 1e-6 * Dscreen / (b * 1e-3);
+      if (yc0 - hw > -YMAX && yc0 + hw < YMAX) {
+        const yy = PY(0.35);
+        gE.strokeStyle = 'rgba(0,48,91,0.45)'; gE.lineWidth = 1; gE.setLineDash([3, 3]);
+        for (const v of [yc0 - hw, yc0 + hw]) { gE.beginPath(); gE.moveTo(X(v), PY(0)); gE.lineTo(X(v), yy); gE.stroke(); }
+        gE.setLineDash([]);
+        dimArrow(gE, X(yc0 - hw), X(yc0 + hw), yy, '2\u03BBD/b = ' + fmt(2 * hw, 2) + ' mm', BLUE);
+      }
+      if (white) {
+        gE.font = '11px ' + FONT; gE.textAlign = 'left'; gE.textBaseline = 'top'; gE.fillStyle = 'rgba(0,48,91,0.7)';
+        gE.fillText('courbes : 450, 550, 650 nm', x0p + 4, py0 - 2);
+      }
+      return;
+    }
     // interfrange
-    const lamI = white ? 550 : lambda, i = lamI * 1e-6 * Dscreen / (a * 1e-3);
+    const i = lamI * 1e-6 * Dscreen / (a * 1e-3);
     const V = sinc(Math.PI * a * 1e-3 * dxs * 1e-3 / (lamI * 1e-6 * Dsource));
     const yc0 = -x0 * 1e-3 * Dscreen / Dsource + (V < 0 ? i / 2 : 0);
     let ym = yc0 - Math.round(yc0 / i) * i;
@@ -1359,12 +1411,17 @@ const Young = (() => {
     $('y-lambda').disabled = white;
     const lam = (white ? 550 : lambda) * 1e-6;
     const i = lam * Dscreen / (a * 1e-3), V = sinc(Math.PI * a * 1e-3 * dxs * 1e-3 / (lam * Dsource));
-    $('y-iI').textContent = fmt(i, 3) + ' mm' + (white ? ' (550 nm)' : '');
+    $('y-aRow').classList.toggle('disabled', single);
+    $('y-a').disabled = single;
+    $('y-iCRow').style.display = single ? 'none' : '';
+    $('y-iILabel').innerHTML = single ? 'Largeur de la tache centrale 2&lambda;<i>D</i>/<i>b</i>' : 'Interfrange <i>i</i> = &lambda;<i>D</i>/<i>a</i>';
+    $('y-iI').textContent = fmt(single ? 2 * lam * Dscreen / (b * 1e-3) : i, 3) + ' mm' + (white ? ' (550 nm)' : '');
     $('y-iY0').textContent = fmt(-x0 * 1e-3 * Dscreen / Dsource, 2) + ' mm';
     $('y-iC').textContent = fmt(Math.abs(V), 2);
     $('y-iW').textContent = fmt(lam * Dscreen / (b * 1e-3), 2) + ' mm';
     let reg = '';
-    if (dxs > 0) {
+    if (single) reg = dxs > 0 ? 'Source étendue : la figure de diffraction s\u2019élargit et ses minimums ne sont plus noirs.' : '';
+    else if (dxs > 0) {
       const dxc = lam * Dsource / (a * 1e-3) * 1000;
       reg = 'Brouillage total pour Δx = λd/a = ' + fmt(dxc, 0) + ' µm' + (V < 0 ? ' : au-delà, les franges sont inversées (contraste négatif).' : '.');
     }
@@ -1377,6 +1434,11 @@ const Young = (() => {
   bindRange('y-x0', (v) => { x0 = v; updateInfo(); });
   bindRange('y-dx', (v) => { dxs = v; updateInfo(); });
   $('y-white').addEventListener('change', (e) => { white = e.target.checked; updateInfo(); });
+  document.querySelectorAll('input[name=y-mode]').forEach((r) => r.addEventListener('change', () => {
+    single = r.value === 'single';
+    if (single && b < 50) { b = 80; $('y-b').value = 80; }     // fente assez large pour voir plusieurs lobes
+    updateInfo();
+  }));
   updateInfo();
 
   return {
