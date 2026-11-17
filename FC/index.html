@@ -1594,21 +1594,42 @@ const Fabry = (() => {
     gO.strokeStyle = 'rgba(160,220,180,0.13)'; gO.lineWidth = 1;
     for (let i = 1; i < 10; i++) { const xx = sx0 + i * (sx1 - sx0) / 10; gO.beginPath(); gO.moveTo(xx, sy0); gO.lineTo(xx, sy1); gO.stroke(); }
     for (let j = 1; j < 8; j++) { const yy = sy0 + j * (sy1 - sy0) / 8; gO.beginPath(); gO.moveTo(sx0, yy); gO.lineTo(sx1, yy); gO.stroke(); }
-    const win = 2 * period, tA = t - win;
-    const TX = (tt) => sx0 + (tt - tA) / win * (sx1 - sx0);
+    // balayage déclenché sur le début de la rampe : une période par balayage, de gauche à droite
+    const win = period, sweep = (tt) => Math.floor(tt / period + 1e-9);
+    const cur = sweep(t);
+    const TX = (tt) => sx0 + (tt / period - sweep(tt)) * (sx1 - sx0);
+    const beam = TX(t);
     const half = (sy1 - sy0) / 2;
     const Y1 = (v) => sy0 + 10 + (1 - v) * (half - 16);                 // voie 1 : photodiode (moitié haute)
     const Y2 = (v) => sy1 - 8 - v / 3 * (half - 16);                    // voie 2 : rampe piézo (moitié basse)
-    let k0 = 0;
-    while (k0 < hist.length - 1 && hist[k0][0] < tA) k0++;
+    const shown = (k) => {                                              // point visible : balayage en cours, ou rémanence du précédent devant le spot
+      const sw = sweep(hist[k][0]);
+      return sw === cur ? 2 : (sw === cur - 1 && TX(hist[k][0]) > beam ? 1 : 0);
+    };
     gO.save(); gO.beginPath(); gO.rect(sx0, sy0, sx1 - sx0, sy1 - sy0); gO.clip();
-    for (const [idx, col, Yf] of [[2, '#f2b134', Y2], [1, '#59e08a', Y1]]) {
-      gO.strokeStyle = col; gO.lineWidth = 1.8; gO.shadowColor = col; gO.shadowBlur = 4;
-      gO.beginPath();
-      for (let k = k0; k < hist.length; k++) { const xx = TX(hist[k][0]), yy = Yf(hist[k][idx]); if (k === k0) gO.moveTo(xx, yy); else gO.lineTo(xx, yy); }
-      gO.stroke();
+    for (const level of [1, 2]) {
+      for (const [idx, col, Yf] of [[2, '#f2b134', Y2], [1, '#59e08a', Y1]]) {
+        gO.strokeStyle = col; gO.lineWidth = 1.8;
+        gO.globalAlpha = level === 2 ? 1 : 0.28;
+        gO.shadowColor = col; gO.shadowBlur = level === 2 ? 4 : 0;
+        gO.beginPath();
+        let open = false;
+        for (let k = 0; k < hist.length; k++) {
+          if (shown(k) !== level) { open = false; continue; }
+          const xx = TX(hist[k][0]), yy = Yf(hist[k][idx]);
+          if (open) gO.lineTo(xx, yy); else { gO.moveTo(xx, yy); open = true; }
+        }
+        gO.stroke();
+      }
     }
-    gO.shadowBlur = 0;
+    gO.globalAlpha = 1; gO.shadowBlur = 0;
+    if (hist.length) {                                                  // spot
+      const last = hist[hist.length - 1];
+      gO.fillStyle = '#c8ffd9';
+      gO.beginPath(); gO.arc(beam, Y1(last[1]), 2.5, 0, 2 * Math.PI); gO.fill();
+      gO.fillStyle = '#ffe2a6';
+      gO.beginPath(); gO.arc(beam, Y2(last[2]), 2.5, 0, 2 * Math.PI); gO.fill();
+    }
     gO.restore();
     gO.font = '12px ' + FONT; gO.textBaseline = 'top'; gO.textAlign = 'left';
     gO.fillStyle = GREEN; gO.fillText('CH1 photodiode', sx0, 6);
@@ -1618,19 +1639,24 @@ const Fabry = (() => {
     // en pause : ISL entre deux pics successifs d'une même raie, sur la même montée de rampe
     if (!running && (spec === 'mono' || spec === 'lor') && hist.length > 3) {
       const pk = [];
-      for (let k = Math.max(k0, 1); k < hist.length - 1; k++) {
+      for (let k = 1; k < hist.length - 1; k++) {
+        if (!shown(k)) continue;
         const v = hist[k][1];
         if (v > 0.3 * Math.max(0.05, hist[k][1]) && v >= hist[k - 1][1] && v > hist[k + 1][1] && hist[k][2] > hist[k - 1][2] && v > 0.2) pk.push(k);
       }
-      for (let k = pk.length - 1; k > 0; k--) {
-        const a = pk[k - 1], b = pk[k];
-        if (Math.abs(hist[b][2] - hist[a][2] - 1) < 0.05) {
+      // tous les balayages sont identiques : on peut associer un pic du balayage en cours et un pic rémanent
+      let found = null;
+      for (const a of pk) for (const b of pk) {
+        if (!found && TX(hist[a][0]) < TX(hist[b][0]) && Math.abs(hist[b][2] - hist[a][2] - 1) < 0.05) found = [a, b];
+      }
+      if (found) {
+        const [a, b] = found;
+        {
           const yy = Y1(1) + 4;
           gO.strokeStyle = 'rgba(255,255,255,0.45)'; gO.setLineDash([3, 3]); gO.lineWidth = 1;
           for (const q of [a, b]) { gO.beginPath(); gO.moveTo(TX(hist[q][0]), Y1(hist[q][1])); gO.lineTo(TX(hist[q][0]), yy); gO.stroke(); }
           gO.setLineDash([]);
           dimArrow(gO, TX(hist[a][0]), TX(hist[b][0]), yy + 22, 'ISL = ' + fmt(fsr() / 1e9, 2) + ' GHz', '#3d8bfd');
-          break;
         }
       }
     }
