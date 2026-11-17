@@ -257,10 +257,12 @@
     <p>Au <b>contact optique</b> (<i>e</i> = 0, miroirs parallèles), la différence de marche est nulle partout : teinte plate.
       En translatant M<sub>2</sub>, on forme une <b>lame d'air</b> entre M<sub>2</sub> et l'image M<sub>1</sub>' de M<sub>1</sub> par la séparatrice :
       franges d'égale inclinaison (anneaux), &delta; = 2<i>e</i> cos <i>i</i>, qui naissent ou disparaissent au centre pendant le chariotage.
-      En inclinant M<sub>2</sub>, on forme un <b>coin d'air</b> : franges rectilignes d'égale épaisseur. Avec le doublet du sodium
+      En inclinant M<sub>2</sub>, on forme un <b>coin d'air</b> : franges rectilignes, parallèles à l'arête du coin. Avec une source étendue,
+      ce sont des franges d'égale épaisseur localisées sur les miroirs (interfrange &lambda;/2&theta;) ; la source ponctuelle simulée ici les rend
+      visibles aussi dans le plan focal, avec un interfrange &lambda;<i>f</i>/2<i>d</i>&theta;. Avec le doublet du sodium
       (&lambda; = 589,0 et 589,6 nm) le contraste s'annule périodiquement (anticoïncidences tous les &Delta;(2<i>e</i>) = &lambda;&sup2;/&Delta;&lambda; &asymp; 0,58 mm) ;
       en lumière blanche, on ne voit des couleurs qu'au voisinage de la différence de marche nulle (blanc d'ordre supérieur au-delà).</p>
-    <p class="model">Calcul : différence de marche exacte entre les deux rayons pour chaque direction, miroirs à 250 mm de la séparatrice,
+    <p class="model">Calcul : différence de marche exacte entre les deux rayons pour chaque direction, source ponctuelle à <i>d</i> = 250 mm des miroirs (trajets dépliés),
       lentille de focale 100 mm, écran de 20 mm de diamètre ; couleurs en lumière blanche obtenues par les fonctions colorimétriques CIE 1931.
       Le schéma exagère fortement la translation et l'inclinaison.</p>
   </div>
@@ -1123,7 +1125,7 @@ const Mich = (() => {
     let reg;
     if (Math.abs(e) < 0.005 && !tx && !ty) reg = 'Contact optique : différence de marche nulle partout, teinte plate.';
     else if (!tx && !ty) reg = 'Miroirs parallèles : anneaux d’égale inclinaison (localisés à l’infini).';
-    else if (Math.abs(e) < 2) reg = 'Coin d’air : franges rectilignes d’égale épaisseur, perpendiculaires à l’arête du coin.';
+    else if (Math.abs(e) < 2) reg = 'Coin d’air : franges rectilignes parallèles à l’arête du coin, d’interfrange \u03BBf/2d\u03B8 = ' + fmt(lam * 100 / (2 * 250 * Math.hypot(tx, ty) * 1e-6) / 1000, 2) + ' mm sur l’écran.';
     else reg = 'Lame d’air et coin d’air combinés : anneaux décentrés.';
     if (src === 'na') reg += ' Contraste du doublet : |cos(π·δ·Δσ)| = ' + fmt(Math.abs(Math.cos(Math.PI * 2 * e * (1 / 0.5890 - 1 / 0.5896))), 2) + ' au centre.';
     if (src === 'white' && Math.abs(2 * e) > 3) reg += ' En lumière blanche, au-delà de quelques µm : blanc d’ordre supérieur.';
