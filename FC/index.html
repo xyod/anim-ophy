@@ -96,6 +96,7 @@
     <a href="#michelson" role="tab" id="tab-michelson">Interféromètre de Michelson</a>
     <a href="#young" role="tab" id="tab-young">Fentes d'Young</a>
     <a href="#fabry" role="tab" id="tab-fabry">Fabry-Perot à balayage</a>
+    <a href="#huygens" role="tab" id="tab-huygens">Huygens-Fresnel</a>
   </nav>
 </header>
 
@@ -366,6 +367,58 @@
       une raie plus large que &delta;&nu; apparaît avec sa vraie largeur.</p>
     <p class="model">Calcul : <i>T</i>(&nu;) = 1 / (1 + <i>m</i> sin&sup2;(4&pi;<i>e</i>&nu;/<i>c</i>)), <i>m</i> = 4<i>R</i>/(1 &minus; <i>R</i>)&sup2; ;
       chaque raie lorentzienne de la source est convoluée exactement avec la fonction d'Airy ; &lambda; = 633 nm.</p>
+  </div>
+</section>
+
+<!-- ======================= HUYGENS-FRESNEL ======================= -->
+<section class="tab" id="huygens" role="tabpanel" aria-labelledby="tab-huygens">
+  <p class="lead">Chaque point de l'ouverture, atteint par l'onde incidente, réémet une ondelette ; l'onde diffractée est la somme de ces ondelettes,
+    avec leurs phases. Cliquez dans la figure pour placer le point d'observation P.</p>
+  <div class="card fig"><canvas id="h-field" aria-label="Champ diffracté par une ouverture, somme d'ondelettes secondaires" style="cursor:crosshair"></canvas></div>
+  <div class="grid2" style="margin-top:12px">
+    <div class="card fig"><canvas id="h-phasor" aria-label="Somme des contributions au point P (diagramme de Fresnel)"></canvas></div>
+    <div class="card fig"><canvas id="h-screen" aria-label="Intensité sur l'écran"></canvas></div>
+  </div>
+  <div class="panel">
+    <div class="card">
+      <div class="buttons">
+        <button id="h-play" class="primary">&#10074;&#10074; Pause</button>
+        <div class="radio" role="radiogroup" aria-label="Affichage" style="margin:0 0 0 auto">
+          <label><input type="radio" name="h-view" value="field" checked> Champ instantané</label>
+          <label><input type="radio" name="h-view" value="int"> Intensité moyenne</label>
+        </div>
+      </div>
+      <div class="row"><label for="h-a">Largeur de l'ouverture <i>a</i></label><input type="range" id="h-a" min="0.5" max="16" step="0.5" value="6"><output id="h-aOut"></output></div>
+      <div class="row"><label for="h-n">Sources secondaires <i>N</i></label><input type="range" id="h-n" min="1" max="60" step="1" value="24"><output id="h-nOut"></output></div>
+      <div class="checks">
+        <label><input type="checkbox" id="h-wave" checked> Afficher les ondelettes (crêtes)</label>
+        <label><input type="checkbox" id="h-obl" checked> Facteur d'obliquité de Fresnel (1 + cos &theta;)/2</label>
+      </div>
+      <h2 style="margin-top:12px">Expériences</h2>
+      <div class="chips" id="h-presets"></div>
+    </div>
+    <div class="card">
+      <h2>Grandeurs</h2>
+      <table>
+        <tr><td>Espacement des sources <i>a</i>/<i>N</i></td><td id="h-iSp"></td></tr>
+        <tr><td>Demi-angle de diffraction sin &theta; = &lambda;/<i>a</i></td><td id="h-iTh"></td></tr>
+        <tr><td>Nombre de Fresnel <i>a</i>&sup2;/4&lambda;<i>D</i> (écran)</td><td id="h-iNF"></td></tr>
+        <tr><td>Amplitude en P (onde incidente = 1)</td><td id="h-iP"></td></tr>
+      </table>
+      <p class="hint" id="h-regime"></p>
+    </div>
+  </div>
+  <div class="card note">
+    <p><b>Principe de Huygens-Fresnel.</b> Chaque élément de surface d'une onde se comporte comme une source secondaire qui émet une ondelette
+      de même fréquence ; l'amplitude en un point P est la <b>somme cohérente</b> de toutes ces ondelettes, chacune avec son retard de phase
+      2&pi;<i>r</i>/&lambda;. Huygens expliquait ainsi la propagation (l'enveloppe des ondelettes reconstruit le front d'onde) ; Fresnel y a ajouté
+      les interférences, ce qui explique la diffraction : une ouverture large donne un faisceau presque rectiligne, une ouverture étroite
+      (<i>a</i> &asymp; &lambda;) se comporte comme une source unique et l'onde s'étale dans toutes les directions.</p>
+    <p>Le diagramme de Fresnel montre chaque contribution comme un petit vecteur, mis bout à bout : leur résultante donne l'amplitude en P.
+      Si les sources sont trop espacées (<i>a</i>/<i>N</i> &gt; &lambda;), des faisceaux parasites apparaissent : l'ouverture se comporte alors comme un réseau.</p>
+    <p class="model">Calcul (à deux dimensions, longueurs en unités de &lambda;) : <i>E</i>(P) = &Sigma; (<i>a</i>/<i>N</i>) &middot; <i>K</i>(&theta;) &middot;
+      e<sup><i>i</i>(2&pi;<i>r</i> &minus; &pi;/4)</sup> / &radic;<i>r</i>, normalisé pour que l'onde transmise par une ouverture très large ait une amplitude 1.
+      L'onde réfléchie par l'écran n'est pas représentée.</p>
   </div>
 </section>
 
@@ -1709,10 +1762,281 @@ const Fabry = (() => {
   };
 })();
 
+
+/* =====================================================================
+   Onglet 6 : principe de Huygens-Fresnel
+   ===================================================================== */
+const Huygens = (() => {
+  const XL = -8, XR = 30, YT = 12, SPL = 6;            // domaine en longueurs d'onde, échantillons par λ
+  const GX = (XR - XL) * SPL, GY = 2 * YT * SPL;
+  let a = 6, N = 24, showWaves = true, oblique = true, view = 'field', running = true, wt = 0;
+  let probe = [18, 3];
+  const PERIOD = 1.4;                                   // période de l'animation (s)
+  const Cre = new Float32Array(GX * GY), Cim = new Float32Array(GX * GY);
+  let dirty = true, intMax = 1;
+  const off = document.createElement('canvas'); off.width = GX; off.height = GY;
+  const offG = off.getContext('2d'), img = offG.createImageData(GX, GY);
+  const cvF = $('h-field'), gF = cvF.getContext('2d');
+  const cvP = $('h-phasor'), gP = cvP.getContext('2d');
+  const cvS = $('h-screen'), gS = cvS.getContext('2d');
+  let DF, DP, DS;
+
+  /* palettes : champ (bleu - blanc - orange) et intensité (noir - orange - blanc) */
+  const PAL_F = [], PAL_I = [];
+  for (let k = 0; k < 256; k++) {
+    const v = k / 255 * 2 - 1, m = Math.min(1, Math.abs(v));
+    PAL_F.push(v < 0 ? [255 - m * (255 - 30), 255 - m * (255 - 84), 255 - m * (255 - 160)]
+                     : [255 - m * (255 - 236), 255 - m * (255 - 102), 255 - m * (255 - 8)]);
+    const u = k / 255;
+    PAL_I.push(u < 0.5 ? [2 * u * 236, 2 * u * 102, 2 * u * 8] : [236 + (u - 0.5) * 2 * 19, 102 + (u - 0.5) * 2 * 153, 8 + (u - 0.5) * 2 * 247]);
+  }
+
+  const sources = () => {
+    const out = [];
+    for (let n = 0; n < N; n++) out.push(N === 1 ? 0 : -a / 2 + a * (n + 0.5) / N);
+    return out;
+  };
+  /* contribution complexe des sources au point (x, y) */
+  function sumAt(x, y, list) {
+    const w = a / N;
+    let re = 0, im = 0;
+    for (const ys of sources()) {
+      const dx = x, dy = y - ys, r = Math.max(0.25, Math.hypot(dx, dy));
+      const K = oblique ? 0.5 * (1 + dx / r) : 1;
+      const amp = w * K / Math.sqrt(r), ph = 2 * Math.PI * r - Math.PI / 4;
+      const cr = amp * Math.cos(ph), ci = amp * Math.sin(ph);
+      if (list) list.push([cr, ci]);
+      re += cr; im += ci;
+    }
+    return [re, im];
+  }
+  function compute() {
+    intMax = 1e-9;
+    for (let j = 0; j < GY; j++) {
+      const y = YT - (j + 0.5) / SPL;
+      for (let i = 0; i < GX; i++) {
+        const x = XL + (i + 0.5) / SPL, o = j * GX + i;
+        if (x <= 0) { Cre[o] = 0; Cim[o] = 0; continue; }
+        const [re, im] = sumAt(x, y);
+        Cre[o] = re; Cim[o] = im;
+        if (x > 2) intMax = Math.max(intMax, re * re + im * im);
+      }
+    }
+    dirty = false;
+  }
+
+  function renderField() {
+    const d = img.data, c = Math.cos(wt), s = Math.sin(wt);
+    for (let j = 0; j < GY; j++) {
+      const y = YT - (j + 0.5) / SPL;
+      for (let i = 0; i < GX; i++) {
+        const x = XL + (i + 0.5) / SPL, o = j * GX + i;
+        let col;
+        if (view === 'field') {
+          const v = x <= 0 ? Math.cos(2 * Math.PI * x - wt) : Cre[o] * c + Cim[o] * s;
+          col = PAL_F[Math.max(0, Math.min(255, Math.round((v / 1.3 + 1) * 127.5)))];
+        } else {
+          const I = (x <= 0 ? 1 : Cre[o] * Cre[o] + Cim[o] * Cim[o]) / Math.max(1, intMax);
+          col = PAL_I[Math.max(0, Math.min(255, Math.round(Math.sqrt(Math.min(1, I)) * 255)))];
+        }
+        d[4 * o] = col[0]; d[4 * o + 1] = col[1]; d[4 * o + 2] = col[2]; d[4 * o + 3] = 255;
+      }
+    }
+    offG.putImageData(img, 0, 0);
+  }
+
+  function geom() {
+    const W = DF.w, H = DF.h, s = Math.min(W / (XR - XL), H / (2 * YT));
+    const ox = (W - s * (XR - XL)) / 2, oy = (H - s * 2 * YT) / 2;
+    return { s, X: (x) => ox + (x - XL) * s, Y: (y) => oy + (YT - y) * s, ox, oy };
+  }
+
+  function drawField() {
+    const W = DF.w, H = DF.h;
+    begin(gF, DF);
+    gF.fillStyle = '#f2f3f5'; gF.fillRect(0, 0, W, H);
+    renderField();
+    const G = geom();
+    gF.imageSmoothingEnabled = true;
+    gF.drawImage(off, G.X(XL), G.Y(YT), (XR - XL) * G.s, 2 * YT * G.s);
+    // ondelettes : crêtes des ondes émises par chaque source
+    const src = sources();
+    if (showWaves && view === 'field') {
+      const step = Math.max(1, Math.ceil(src.length / 14));
+      gF.save(); gF.beginPath(); gF.rect(G.X(0), G.Y(YT), (XR) * G.s, 2 * YT * G.s); gF.clip();
+      gF.lineWidth = 1;
+      const r0 = ((wt + Math.PI / 4) / (2 * Math.PI)) % 1;
+      for (let n = 0; n < src.length; n += step) {
+        for (let m = 0; m < 7; m++) {
+          const r = r0 + m;
+          gF.strokeStyle = 'rgba(0,48,91,' + (0.55 * (1 - m / 7)).toFixed(3) + ')';
+          gF.beginPath(); gF.arc(G.X(0), G.Y(src[n]), r * G.s, -Math.PI / 2, Math.PI / 2); gF.stroke();
+        }
+      }
+      gF.restore();
+    }
+    // écran opaque percé
+    const wx = G.X(-0.35), ww = 0.35 * G.s;
+    gF.fillStyle = '#2b2f36';
+    gF.fillRect(wx, G.Y(YT), ww, G.Y(a / 2) - G.Y(YT));
+    gF.fillRect(wx, G.Y(-a / 2), ww, G.Y(-YT) - G.Y(-a / 2));
+    // sources secondaires
+    gF.fillStyle = ORANGE; gF.strokeStyle = '#fff'; gF.lineWidth = 1;
+    for (const ys of src) { gF.beginPath(); gF.arc(G.X(0), G.Y(ys), Math.max(2, Math.min(4, G.s * 0.3)), 0, 2 * Math.PI); gF.fill(); gF.stroke(); }
+    // rayons vers P
+    const [px, py] = probe;
+    gF.strokeStyle = 'rgba(255,255,255,0.35)'; gF.lineWidth = 1;
+    gF.beginPath();
+    for (let n = 0; n < src.length; n += Math.max(1, Math.ceil(src.length / 10))) { gF.moveTo(G.X(0), G.Y(src[n])); gF.lineTo(G.X(px), G.Y(py)); }
+    gF.stroke();
+    gF.fillStyle = GREEN; gF.strokeStyle = '#fff'; gF.lineWidth = 2;
+    gF.beginPath(); gF.arc(G.X(px), G.Y(py), 6, 0, 2 * Math.PI); gF.fill(); gF.stroke();
+    gF.font = '500 13px ' + FONT; gF.textAlign = 'left'; gF.textBaseline = 'middle';
+    gF.lineWidth = 3; gF.strokeStyle = 'rgba(255,255,255,0.9)'; gF.strokeText('P', G.X(px) + 9, G.Y(py) - 9);
+    gF.fillStyle = '#1d2733'; gF.fillText('P', G.X(px) + 9, G.Y(py) - 9);
+    // repère de longueur
+    const label = (txt, x, y) => { gF.lineWidth = 3; gF.strokeStyle = 'rgba(255,255,255,0.9)'; gF.strokeText(txt, x, y); gF.fillStyle = '#1d2733'; gF.fillText(txt, x, y); };
+    const lx = G.X(XR - 6), ly = G.Y(-YT) - 14;
+    gF.strokeStyle = 'rgba(255,255,255,0.9)'; gF.lineWidth = 5;
+    gF.beginPath(); gF.moveTo(lx, ly); gF.lineTo(lx + 5 * G.s, ly); gF.stroke();
+    gF.strokeStyle = '#1d2733'; gF.lineWidth = 2;
+    gF.beginPath(); gF.moveTo(lx, ly); gF.lineTo(lx + 5 * G.s, ly); gF.stroke();
+    gF.font = '500 12px ' + FONT; gF.textAlign = 'center'; gF.textBaseline = 'bottom'; label('5 λ', lx + 2.5 * G.s, ly - 4);
+    gF.textAlign = 'left'; gF.textBaseline = 'top';
+    label('onde plane incidente →', G.X(XL) + 8, G.Y(YT) + 8);
+    gF.textAlign = 'right';
+    label(view === 'field' ? 'champ diffracté (instantané)' : 'intensité moyenne', G.X(XR) - 8, G.Y(YT) + 8);
+  }
+
+  function drawPhasor() {
+    const W = DP.w, H = DP.h;
+    begin(gP, DP);
+    const list = [];
+    const [re, im] = sumAt(probe[0], probe[1], list);
+    // rotation par -ωt : la projection horizontale de la résultante est le champ instantané
+    const c = Math.cos(-wt), s = Math.sin(-wt);
+    const pts = [[0, 0]];
+    for (const [cr, ci] of list) { const p = pts[pts.length - 1]; pts.push([p[0] + cr * c - ci * s, p[1] + cr * s + ci * c]); }
+    let mx = 1e-6;
+    for (const p of pts) mx = Math.max(mx, Math.abs(p[0]), Math.abs(p[1]));
+    const R = Math.min(W, H - 50) / 2 - 14, k = R / mx, cx = W / 2, cy = 30 + (H - 30) / 2;
+    gP.strokeStyle = '#e1e4e8'; gP.lineWidth = 1;
+    gP.beginPath(); gP.moveTo(cx - R - 8, cy); gP.lineTo(cx + R + 8, cy); gP.moveTo(cx, cy - R - 8); gP.lineTo(cx, cy + R + 8); gP.stroke();
+    // contributions bout à bout
+    const step = Math.max(1, Math.ceil(list.length / 40));
+    for (let n = 0; n < list.length; n++) {
+      const a0 = pts[n], a1 = pts[n + 1];
+      const col = 'hsl(' + (200 - 160 * n / Math.max(1, list.length - 1)) + ',55%,45%)';
+      if (list.length <= 40 || n % step === 0) arrow(gP, cx + a0[0] * k, cy - a0[1] * k, cx + a1[0] * k, cy - a1[1] * k, col, 1.5, Math.min(7, Math.hypot(a1[0] - a0[0], a1[1] - a0[1]) * k * 0.5));
+      else { gP.strokeStyle = col; gP.beginPath(); gP.moveTo(cx + a0[0] * k, cy - a0[1] * k); gP.lineTo(cx + a1[0] * k, cy - a1[1] * k); gP.stroke(); }
+    }
+    const e = pts[pts.length - 1];
+    arrow(gP, cx, cy, cx + e[0] * k, cy - e[1] * k, ORANGE, 3, 11);
+    gP.setLineDash([3, 3]); gP.strokeStyle = 'rgba(0,0,0,0.3)'; gP.lineWidth = 1;
+    gP.beginPath(); gP.moveTo(cx + e[0] * k, cy - e[1] * k); gP.lineTo(cx + e[0] * k, cy); gP.stroke(); gP.setLineDash([]);
+    gP.font = '12px ' + FONT; gP.fillStyle = '#5d6670'; gP.textAlign = 'left'; gP.textBaseline = 'top';
+    gP.fillText('Somme des ondelettes en P (diagramme de Fresnel)', 10, 8);
+    gP.fillStyle = ORANGE; gP.font = '500 12px ' + FONT;
+    gP.fillText('résultante |E| = ' + fmt(Math.hypot(re, im), 2), 10, 24);
+    gP.fillStyle = GREY; gP.font = '11px ' + FONT; gP.textAlign = 'right'; gP.textBaseline = 'bottom';
+    gP.fillText('couleur : de la source du haut (bleu) à celle du bas (rouge)', W - 8, H - 6);
+    $('h-iP').textContent = fmt(Math.hypot(re, im), 2);
+  }
+
+  function drawScreen() {
+    const W = DS.w, H = DS.h;
+    begin(gS, DS);
+    const x0 = 40, x1 = W - 14, y0 = 34, y1 = H - 28, D = XR - 0.2;
+    const n = Math.round(x1 - x0), vals = [];
+    let mx = 1e-9;
+    for (let i = 0; i <= n; i++) {
+      const y = -YT + i / n * 2 * YT, [re, im] = sumAt(D, y), I = re * re + im * im;
+      vals.push(I); mx = Math.max(mx, I);
+    }
+    const X = (y) => x0 + (y + YT) / (2 * YT) * (x1 - x0), Y = (v) => y1 - v / mx * (y1 - y0);
+    gS.font = '11px ' + FONT; gS.lineWidth = 1;
+    gS.textAlign = 'center'; gS.textBaseline = 'top';
+    for (let v = -10; v <= 10; v += 5) {
+      gS.strokeStyle = '#eef0f3'; gS.beginPath(); gS.moveTo(X(v), y0); gS.lineTo(X(v), y1); gS.stroke();
+      gS.fillStyle = '#9aa0a8'; gS.fillText(fmt(v, 0), X(v), y1 + 5);
+    }
+    gS.strokeStyle = '#9aa0a8'; gS.beginPath(); gS.moveTo(x0, y1); gS.lineTo(x1, y1); gS.stroke();
+    gS.fillStyle = 'rgba(236,102,8,0.18)'; gS.strokeStyle = ORANGE; gS.lineWidth = 2;
+    gS.beginPath(); gS.moveTo(x0, y1);
+    vals.forEach((v, i) => gS.lineTo(x0 + i, Y(v)));
+    gS.lineTo(x1, y1); gS.closePath(); gS.fill();
+    gS.beginPath(); vals.forEach((v, i) => (i ? gS.lineTo(x0 + i, Y(v)) : gS.moveTo(x0, Y(v)))); gS.stroke();
+    // ombre géométrique
+    gS.fillStyle = 'rgba(0,48,91,0.08)';
+    gS.fillRect(X(-a / 2), y0, X(a / 2) - X(-a / 2), y1 - y0);
+    gS.font = '12px ' + FONT; gS.fillStyle = '#5d6670'; gS.textAlign = 'left'; gS.textBaseline = 'top';
+    gS.fillText(W < 480 ? 'Intensité à D = ' + fmt(D, 0) + ' λ (bleu : faisceau géométrique)' : 'Intensité sur un écran à D = ' + fmt(D, 0) + ' λ (zone bleutée : faisceau géométrique)', 10, 8);
+    gS.textAlign = 'right'; gS.textBaseline = 'bottom'; gS.fillText('y (λ)', x1, y1 - 3);
+  }
+
+  function updateInfo() {
+    $('h-aOut').textContent = fmt(a, 1) + ' λ';
+    $('h-nOut').textContent = N;
+    const sp = a / N;
+    $('h-iSp').textContent = fmt(sp, 2) + ' λ';
+    $('h-iTh').textContent = a <= 1 ? '≥ 1 (pas de minimum)' : fmt(1 / a, 3) + '  (θ = ' + fmt(Math.asin(1 / a) * 180 / Math.PI, 1) + '°)';
+    $('h-iNF').textContent = fmt(a * a / (4 * (XR - 0.2)), 2);
+    let reg;
+    if (N === 1) reg = 'Une seule source secondaire : onde circulaire, l’ouverture se comporte comme une source ponctuelle.';
+    else if (sp > 1) reg = 'Sources espacées de plus de λ : des faisceaux parasites apparaissent (effet de réseau). Augmentez N.';
+    else if (a <= 1.5) reg = 'Ouverture de l’ordre de λ : l’onde diffractée s’étale dans tout le demi-espace.';
+    else if (a >= 10) reg = 'Ouverture large : faisceau presque rectiligne, la diffraction n’est visible que sur les bords.';
+    else reg = 'Faisceau diffracté de demi-angle θ ≈ λ/a, entouré de lobes secondaires.';
+    $('h-regime').textContent = reg;
+    document.querySelectorAll('#h-presets button').forEach((b) => b.classList.toggle('on', +b.dataset.a === a && +b.dataset.n === N));
+    dirty = true;
+  }
+  function set(na, nn) { a = na; N = nn; $('h-a').value = na; $('h-n').value = nn; updateInfo(); }
+  bindRange('h-a', (v) => { a = v; updateInfo(); });
+  bindRange('h-n', (v) => { N = v; updateInfo(); });
+  $('h-wave').addEventListener('change', (e) => { showWaves = e.target.checked; });
+  $('h-obl').addEventListener('change', (e) => { oblique = e.target.checked; dirty = true; });
+  document.querySelectorAll('input[name=h-view]').forEach((r) => r.addEventListener('change', () => { view = r.value; }));
+  const presets = [
+    ['Une source : onde circulaire', 0.5, 1], ['Fente étroite (a = λ)', 1, 8], ['Fente moyenne (a = 6λ)', 6, 24],
+    ['Fente large (a = 14λ)', 14, 56], ['Sources trop espacées', 12, 6]
+  ];
+  for (const [label, pa, pn] of presets) {
+    const b = document.createElement('button'); b.textContent = label; b.dataset.a = pa; b.dataset.n = pn;
+    b.addEventListener('click', () => set(pa, pn));
+    $('h-presets').appendChild(b);
+  }
+  const playBtn = $('h-play');
+  function setRunning(r) { running = r; playBtn.innerHTML = running ? '&#10074;&#10074; Pause' : '&#9654; Reprendre'; }
+  playBtn.addEventListener('click', () => setRunning(!running));
+  cvF.addEventListener('click', (e) => {
+    const r = cvF.getBoundingClientRect(), G = geom();
+    const x = XL + (e.clientX - r.left - G.ox) / G.s, y = YT - (e.clientY - r.top - G.oy) / G.s;
+    if (x > 0.5 && x < XR && Math.abs(y) < YT) probe = [x, y];
+  });
+  updateInfo();
+
+  return {
+    resize() {
+      const w = cvF.parentElement.clientWidth;
+      DF = sizeCanvas(cvF, Math.round(Math.max(220, Math.min(560, w * 2 * YT / (XR - XL)))));
+      const hw = cvP.parentElement.clientWidth;
+      DP = sizeCanvas(cvP, Math.round(Math.max(260, Math.min(340, hw * 0.75))));
+      DS = sizeCanvas(cvS, Math.round(Math.max(260, Math.min(340, hw * 0.75))));
+    },
+    frame(dtF) {
+      if (dirty) compute();
+      if (running) wt += dtF * 2 * Math.PI / PERIOD;
+      drawField(); drawPhasor(); drawScreen();
+    },
+    key(e) { if (e.code === 'Space') { e.preventDefault(); setRunning(!running); } }
+  };
+})();
+
 /* =====================================================================
    Navigation par onglets
    ===================================================================== */
-const modules = { corde: Corde, polarisation: Pola, michelson: Mich, young: Young, fabry: Fabry };
+const modules = { corde: Corde, polarisation: Pola, michelson: Mich, young: Young, fabry: Fabry, huygens: Huygens };
 let active = null;
 function show(name) {
   if (!modules[name]) name = 'corde';
